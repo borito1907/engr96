@@ -31,12 +31,12 @@ const int BTrig = 26;
 const int BEcho = 27;
 long BDistance();
 
-const int RTrig = 22;
-const int REcho = 23;
+const int RTrig = 24;
+const int REcho = 25;
 long RDistance();
 
-const int LTrig = 24;
-const int LEcho = 25;
+const int LTrig = 22;
+const int LEcho = 23;
 long LDistance();
 
 long BetterDistance(char sensor);
@@ -62,19 +62,21 @@ void backward();
 void left();
 void right();
 
-const float AVOIDANCE_DISTANCE = 30;
+const float AVOIDANCE_DISTANCE = 20;
 const float WALL_AVOID_DIST = 10;
 const float AVOIDANCE_ANGLE = 30;
 const float AVOIDANCE_DELAY = 750;
 const float TURN_PRECISION = 1;
+const float OUT_IN_THE_OPEN = 150;
 void turnQuantity(float deltaYaw);
 
 //State Setup
-int state = 0;
-void state0();
+int state = 4;
 void state1();
 void state2();
 void state3();
+void state4();
+void state5();
 
 // Handle Bad Sensor Input
 
@@ -105,34 +107,36 @@ void setup() {
   pinMode(LEcho, INPUT);
 
   mechServo.attach(ServoPin); //Servo on pin 8
+  mechOpen();
+  // mechClose();
+  
 }
 
 void loop() {
-  state1();
-  // Serial.println(FLDistance());
-  // Serial.println(FRDistance());
-  
-  /*
-    state = -1; //ignore state macchine
-
+    // Serial.println(ObjDistance());
+   
+    mechClose();
+    
+    /*
     switch (state) {
-    case 0: state0();  break;
     case 1: state1();  break;
     case 2: state2();  break;
     case 3: state3();  break;
+    case 4: state4(); break;
     default: break;
     }
-  */
+    */
+    
 }
 
+/*
 void state1() { // Navigate the straightaway
+  // So the sensors rest
   delay(100);
   long FL = FLDistance();
   long FR = FRDistance();
   long R = RDistance();
   long L = LDistance();
-  Serial.println(FL);
-  Serial.println(FR);
   
   forward();
   // If both sensors sense an obstacle nearby
@@ -148,22 +152,100 @@ void state1() { // Navigate the straightaway
   }
   // Obstacle on the left
   if (FL < AVOIDANCE_DISTANCE) {
-    avoidRight();
+    if (R < 20){
+      backward();
+      delay(300);
+      avoidLeft();
+    }
+    else {
+      avoidRight();
+    }
     return;
   }
   // Obstacle on the right
   if (FR < AVOIDANCE_DISTANCE) {
-    avoidLeft();
+    if (L < 20){
+      backward();
+      delay(300);
+      avoidRight();
+    }
+    else {
+      avoidLeft();
+    }
     return;
   }
-
+  if ((L + R > OUT_IN_THE_OPEN) && (FL > 50) && (FR > 50) && (millis() > 20000)){
+    state++;
+  }
   
   return;
 }
+*/
 
-void state2() { //Correct Position
+void state1(){
+  delay(100);
+  long FL = FLDistance();
+  long FR = FRDistance();
+  long R = RDistance();
+  long L = LDistance();
+
+  forward();
+  if (FR < AVOIDANCE_DISTANCE){
+    avoidLeft();
+  }
+  if (FL < AVOIDANCE_DISTANCE){
+    avoidRight();
+  }
+  if ((L + R > 200) && (millis() > 22000)){
+    state++;
+  }
 }
 
+void state2() { // Angle Calibration
+  turnQuantity(90);
+  while ((FLDistance() - FRDistance()) > 3){
+    right();
+  }
+  while ((FRDistance() - FLDistance()) > 3){
+    left();
+  }
+  turnQuantity(-10);
+  state++;
+}
+
+void state3(){ // Center Calibration
+  while ((BDistance() - ((FLDistance() + FRDistance()) / 2)) > 1){
+    backward();
+  }
+  while ((((FLDistance() + FRDistance()) / 2) - BDistance()) > 1){
+    forward();
+  }
+  stop();
+  state++;
+}
+/*
+void state4(){ // Find the object
+  delay(100);
+  if (ObjDistance() > ((FLDistance() + FRDistance) / 2)){
+    left();
+  }
+  
+  if (ObjDistance() > 6 && FLDistance() > 6 && FRDistance() > 6){
+    forward();
+  }
+  else {
+    stop();
+    mechClose();
+    delay(200);
+  }
+}
+*/
+/*
+void state5()
+{
+
+}
+*/
 void avoidLeft(){
   turnQuantity(-AVOIDANCE_ANGLE);
   forward();
@@ -251,20 +333,22 @@ void stop() {
 
 // Servo functions
 
-void mechOpen() {           
+void mechOpen() 
+{           
   pos = 0;
   mechServo.write(pos);
-
 }
 
-void mechClose() {
+void mechClose() 
+{
   pos = 120;
   mechServo.write(pos);
 }
 
 // Ultrasonic sensor functions
 
-long FLDistance() {
+long FLDistance()
+{
   long duration;
   long cm;
 
@@ -283,7 +367,8 @@ long FLDistance() {
   return cm;
 }
 
-long FRDistance() {
+long FRDistance() 
+{
   long duration;
   long cm;
 
